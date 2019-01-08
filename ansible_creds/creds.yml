@@ -1,0 +1,9 @@
+---
+#for vagrant
+- hosts: test
+  user: root
+  become: true
+  connection: ssh
+
+  roles:
+    - creds

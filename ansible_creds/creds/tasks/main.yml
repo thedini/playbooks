@@ -1,0 +1,88 @@
+---
+  - name: List Variables
+    debug:
+      msg: "name = {{ item.0.name }} uid = {{ item.1.uid }}"
+    with_subelements:
+      - "{{ set_user }}"
+      - info
+
+  - name: set root password
+    user:
+      name: 'root'
+      password: '{{ set_root[ansible_hostname].root_pw }}'
+      update_password: always
+
+  - name: Ensure group "ansible" exists
+    group:
+      name: ansible
+      gid: 300
+      state: present
+    
+  - name: Add the user from list with a specific uid and a primary group of 'wheel' for RedHat
+    user:
+      name: "{{ item.0.name }}"
+      uid: "{{ item.1.uid }}"
+      comment: 'using ansible to create {{ set_user.0.name }} user account'
+      shell: /bin/bash
+      groups: ansible,wheel
+      password: "{{ item.1.user_pw }}"
+      update_password: always
+    when: ansible_os_family == "RedHat"
+    with_subelements:
+      - "{{ set_user }}"
+      - info
+
+  - name: Add the user from list with a specific uid and a primary group of 'sudo' for Debian
+    user:
+      name: "{{ item.0.name }}"
+      uid: "{{ item.1.uid }}"
+      comment: 'using ansible to create {{ item.0.name }} user account'
+      shell: /bin/bash
+      groups: ansible,sudo
+      password: "{{ item.1.user_pw }}"
+      update_password: always
+    when: ansible_os_family == "Debian"
+    with_subelements:
+      - "{{ set_user }}"
+      - info
+
+  #setup key exchange 
+
+  - name: Set authorized key for user
+    authorized_key:
+      user: "{{ item.0.name }}"
+      state: present
+      key: "{{ item.1.key }}"
+    register: add_identity_key
+    with_subelements:
+      - "{{ set_user }}"
+      - info
+
+
+  - name: add nopasswd to {{ item.0.name }}
+    lineinfile:
+      path: /etc/sudoers
+      state: present
+      line: '{{ item.0.name }}        ALL=(ALL)       NOPASSWD: ALL'
+    when: 
+      - item.1.nopass == "yes"
+    with_subelements:
+      - "{{ set_user }}"
+      - info
+
+
+  - name: Disable empty password login
+    lineinfile: dest={{ sshd_config }} regexp="^#?PermitEmptyPasswords" line="PermitEmptyPasswords no"
+
+
+  - name: Disable remote root login
+    lineinfile: dest={{ sshd_config }} regexp="^#?PermitRootLogin" line="PermitRootLogin no"
+
+
+  - name: Disable password login
+    lineinfile: dest={{ sshd_config }} regexp="^(#\s*)?PasswordAuthentication " line="PasswordAuthentication no"
+    when: add_identity_key is success and not add_identity_key is skipped
+
+
+  - name: Enable PAM
+    lineinfile: dest={{ sshd_config }} regexp="^#?UsePAM" line="UsePAM yes"

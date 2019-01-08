@@ -1,0 +1,29 @@
+---
+user: test
+sshd_config: '/etc/ssh/sshd_config'
+pw_hash: 'some_sha256_hash'
+
+set_user:
+  - name: ansible
+    info:
+      - uid: "300"
+        user_pw: 'some_sha256_hash'
+        key: "some_pub_key"
+        nopass: "yes"
+
+  - name: cmacris
+    info:
+      - uid: "1010"
+        user_pw: 'some_sha256_hash'
+        key: "ssh-rsa "some_pub_key"
+        nopass: "no"
+
+
+set_root:
+
+  host_name_here:
+      root_pw: 'some_sha256_hash'
+      ip:
+      domain: 'some_domain_name'
+
+ #add additional hosts to dictionay list as needed
